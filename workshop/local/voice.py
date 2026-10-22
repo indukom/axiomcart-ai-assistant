@@ -189,7 +189,7 @@ def cascade(client, samples):
     llm_ms = round((time.perf_counter() - start) * 1000) #TIME IT
     print(f"Assistant: {answer} (LLM {llm_ms} ms)")
     start = time.perf_counter()
-    speak(client, answer) #TTS + SPEAKER
+    speak(client, answer) #TTS 
     tts_playback_ms = round((time.perf_counter() - start) * 1000)
     print(f"TTS generation + playback: {tts_playback_ms} ms")
     print("Note: TTS timing includes playback, not just generation.")
