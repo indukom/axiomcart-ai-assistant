@@ -44,7 +44,7 @@ def rms(samples):
     x = np.asarray(samples, dtype=np.float32) / 32768.0
     return float(np.sqrt(np.mean(x * x))) if x.size else 0.0
 
-
+# ENERY GATE-BASED SILENCE DETECTOR
 class SilenceDetector:
     """Tiny energy-based turn detector for teaching, not production VAD."""
     def __init__(self, threshold=0.025, silence_ms=700, max_ms=15000):
@@ -84,7 +84,9 @@ def record_until_silence(threshold=0.025, silence_ms=700, max_seconds=15):
         raise RuntimeError("No sound detected. Try a lower --threshold.")
     return np.concatenate(frames).reshape(-1)
 
-
+# 2. Speech to TEXT
+# open as binary and save to disk, then send to OpenAI for transcription. Return text.
+# open ai client audio transcription call, model is gpt-4o-mini-transcribe by default
 def transcribe(client, path):
     with open(path, "rb") as audio:
         result = client.audio.transcriptions.create(
@@ -93,7 +95,7 @@ def transcribe(client, path):
         )
     return result.text.strip()
 
-
+# 3. LLM
 def think(client, text):
     result = client.responses.create(
         model=os.getenv("VOICE_LLM_MODEL", "gpt-4.1-mini"),
@@ -102,7 +104,7 @@ def think(client, text):
     )
     return result.output_text.strip()
 
-
+# 4. Text to SPEECH (TTS), input is text and output is wav
 def speak(client, text, output="reply.wav"):
     with client.audio.speech.with_streaming_response.create(
         model=os.getenv("VOICE_TTS_MODEL", "gpt-4o-mini-tts"),
@@ -173,21 +175,21 @@ def play_wav(path):
     sd.play(audio.reshape(-1, channels), samplerate=rate)
     sd.wait()
 
-
+# STICHING
 def cascade(client, samples):
-    save_wav("recording.wav", samples)
+    save_wav("recording.wav", samples) # SAVE WAVE
     start = time.perf_counter()
-    text = transcribe(client, "recording.wav")
-    stt_ms = round((time.perf_counter() - start) * 1000)
+    text = transcribe(client, "recording.wav") # TRANSCRIBE
+    stt_ms = round((time.perf_counter() - start) * 1000) # TIME IT
     print(f"You: {text} (STT {stt_ms} ms)")
     if not text:
         return
     start = time.perf_counter()
-    answer = think(client, text)
-    llm_ms = round((time.perf_counter() - start) * 1000)
+    answer = think(client, text) # LLM
+    llm_ms = round((time.perf_counter() - start) * 1000) #TIME IT
     print(f"Assistant: {answer} (LLM {llm_ms} ms)")
     start = time.perf_counter()
-    speak(client, answer)
+    speak(client, answer) #TTS + SPEAKER
     tts_playback_ms = round((time.perf_counter() - start) * 1000)
     print(f"TTS generation + playback: {tts_playback_ms} ms")
     print("Note: TTS timing includes playback, not just generation.")
